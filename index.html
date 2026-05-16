@@ -153,6 +153,7 @@ body{padding-bottom:calc(var(--nav-h) + env(safe-area-inset-bottom,0px))}
 .sched-day.type-lower{background:var(--blue-light)}
 .sched-day.type-full{background:var(--purple-light)}
 .sched-day.type-hiit{background:#FFE0E0}
+.sched-day.type-cardio{background:#FFF0D6}
 .sched-day.type-pilates{background:var(--green-light)}
 .sched-day.type-rest{background:var(--bg)}
 .sched-day.type-period_light{background:var(--danger-light)}
@@ -390,7 +391,7 @@ body{padding-bottom:calc(var(--nav-h) + env(safe-area-inset-bottom,0px))}
     </div>
     <div class="card">
       <div class="card-header"><span class="dot" style="background:var(--green)"></span>本周普拉提日</div>
-      <div class="text-sub mb-8">选择本周上课的日子，其余训练自动安排</div>
+      <div class="text-sub mb-8">选择本周普拉提上课日(1天)，其余自动安排</div>
       <div class="day-chips" id="pilates-chips"></div>
     </div>
     <div class="card">
@@ -592,6 +593,12 @@ const EXERCISES={
   hiit:{name:'HIIT训练',color:'#FFE0E0',icon:'🔥',moves:[
     {cn:'跟练HIIT视频',en:'HIIT Video Workout',muscle:'全身心肺',search:'HIIT 40分钟 跟练 女生',rest:'',steps:['选择40分钟HIIT视频(含热身)','跟随视频节奏完成训练','中等偏上强度，明显出汗','注意保护脚踝，跳跃动作可改为低冲击版']}
   ]},
+  cardio:{name:'有氧恢复',color:'#FFF0D6',icon:'🚶‍♀️',moves:[
+    {cn:'快走/轻慢跑',en:'Brisk Walk / Light Jog',muscle:'心肺/下肢',search:'Zone2有氧 快走减脂',rest:'',
+     steps:['热身：慢走3分钟，逐渐加快步伐','保持快走或轻慢跑30-40分钟','目标心率Zone 2：能正常说话但不能唱歌(约120-140bpm)','步伐均匀，自然摆臂，核心微收','注意脚踝：避免不平路面，穿支撑性好的鞋','最后5分钟逐渐减速，慢走放松']},
+    {cn:'拉伸放松',en:'Post-Cardio Stretch',muscle:'全身恢复',search:'有氧后拉伸',rest:'',
+     steps:['小腿拉伸(弓步撑墙) 每侧20秒','大腿前侧拉伸(站立拉脚) 每侧20秒','臀部拉伸(坐姿翘二郎腿前倾) 每侧20秒','腰背放松(站立体前屈) 保持20秒']}
+  ]},
   pilates:{name:'普拉提课',color:'#D4EDDA',icon:'🧘',moves:[
     {cn:'普拉提外部课程',en:'Pilates Class',muscle:'核心/柔韧',search:'',rest:'',steps:['按照教练指导完成70分钟课程']}
   ]},
@@ -608,7 +615,7 @@ const PHASES=[
 ];
 
 const DAYS_CN=['日','一','二','三','四','五','六'];
-const TASK_POOL=['upper','lower','full','hiit'];
+const TASK_POOL=['upper','lower','full','hiit','cardio'];
 
 // ==================== STATE ====================
 let state={profile:{},dailyLogs:{},pilatesDays:[],weekOf:null};
@@ -767,7 +774,7 @@ function renderPilatesChips(){
   const w=document.getElementById('pilates-chips'),ws=getWeekStart(new Date()),wk=dateStr(ws);
   if(state.weekOf!==wk){state.pilatesDays=[];state.weekOf=wk;saveState()}
   w.innerHTML='';const labels=['周一','周二','周三','周四','周五','周六','周日'];
-  for(let i=0;i<7;i++){const c=document.createElement('div');c.className='day-chip'+(state.pilatesDays.includes(i)?' selected':'');c.textContent=labels[i];c.onclick=()=>{const idx=state.pilatesDays.indexOf(i);if(idx>=0)state.pilatesDays.splice(idx,1);else if(state.pilatesDays.length<2)state.pilatesDays.push(i);else{showToast('最多选2天');return}state.pilatesDays.sort();saveState();renderPilatesChips();renderWeekSchedule();renderTodayExercise()};w.appendChild(c)}
+  for(let i=0;i<7;i++){const c=document.createElement('div');c.className='day-chip'+(state.pilatesDays.includes(i)?' selected':'');c.textContent=labels[i];c.onclick=()=>{const idx=state.pilatesDays.indexOf(i);if(idx>=0)state.pilatesDays.splice(idx,1);else if(state.pilatesDays.length<1)state.pilatesDays.push(i);else{state.pilatesDays=[i]}state.pilatesDays.sort();saveState();renderPilatesChips();renderWeekSchedule();renderTodayExercise()};w.appendChild(c)}
 }
 
 function getWeekSchedule(){
@@ -786,7 +793,7 @@ function renderWeekSchedule(){
   const s=getWeekSchedule(),w=document.getElementById('week-schedule');
   const ti=(()=>{const ws=getWeekStart(new Date()),td=new Date();td.setHours(0,0,0,0);return Math.floor((td-ws)/86400000)})();
   const dl=['一','二','三','四','五','六','日'];
-  const tl={upper:'上肢',lower:'下肢',full:'全身',hiit:'HIIT',pilates:'普拉提',rest:'休息',period_light:'轻活动'};
+  const tl={upper:'上肢',lower:'下肢',full:'全身',hiit:'HIIT',cardio:'有氧',pilates:'普拉提',rest:'休息',period_light:'轻活动'};
   w.innerHTML=s.map((t,i)=>`<div class="sched-day type-${t}" style="${i===ti?'outline:2px solid var(--primary);outline-offset:-2px':''}"><div class="day-label">${dl[i]}</div><div style="font-size:14px">${EXERCISES[t]?.icon||'😴'}</div><div class="day-type">${tl[t]||'休息'}</div></div>`).join('');
 }
 
@@ -797,6 +804,8 @@ function renderTodayExercise(){
   if(type==='hiit'){
     const m=ex.moves[0];
     c.innerHTML=`<div style="padding:8px 0"><div style="font-size:14px;font-weight:600">🔥 HIIT视频跟练 · 40分钟</div><div class="ex-steps mt-8">${m.steps.map((s,i)=>`<div class="ex-step"><span class="step-num">${i+1}.</span>${s}</div>`).join('')}</div><div class="search-keyword mt-8" onclick="copyText('${m.search}')">复制搜索: ${m.search}</div></div>`;return}
+  if(type==='cardio'){
+    c.innerHTML=ex.moves.map(m=>`<div class="exercise-card"><div class="ex-name">${m.cn}</div><div class="ex-name-en">${m.en}</div><div class="ex-steps mt-8">${m.steps.map((s,i)=>`<div class="ex-step"><span class="step-num">${i+1}.</span>${s}</div>`).join('')}</div>${m.search?`<div class="search-keyword mt-8" onclick="copyText('${m.search}')">复制搜索: ${m.search}</div>`:''}</div>`).join('');return}
   if(type==='period_light'){
     const m=ex.moves[0];
     c.innerHTML=`<div style="padding:8px 0"><div style="font-size:14px;font-weight:600">🌸 经期轻活动</div><div class="ex-steps mt-8">${m.steps.map((s,i)=>`<div class="ex-step"><span class="step-num">${i+1}.</span>${s}</div>`).join('')}</div></div>`;return}
